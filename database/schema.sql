@@ -1,0 +1,3 @@
+-- MySQL schema for EventFlow
+-- Tables: Users, Events, Registrations, AuditLogs
+-- To be defined in Step 2
