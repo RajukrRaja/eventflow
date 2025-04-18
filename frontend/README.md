@@ -1,0 +1,1 @@
+# React.js frontend for EventFlow

@@ -1,0 +1,1 @@
+# MySQL schema and scripts for EventFlow
