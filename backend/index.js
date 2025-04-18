@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const sequelize = require('./config/database');
 const User = require('./models/user.model');
+const authRoutes = require('./routes/auth');
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ app.use(express.json());
     await sequelize.authenticate();
     console.log('Database connected');
 
-    await sequelize.sync({ force: false }); // Don't drop tables
+    await sequelize.sync({ force: false });
     console.log('Models synchronized');
   } catch (error) {
     console.error('Database connection failed:', error);
@@ -24,6 +25,8 @@ app.use(express.json());
 })();
 
 app.get('/', (req, res) => res.send('EventFlow Backend is running'));
+
+app.use('/api/auth', authRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
