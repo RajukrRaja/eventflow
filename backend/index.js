@@ -12,7 +12,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const authRoutes = require('./routes/auth.routes');
+const authRoutes = require('./routes/auth');
 const eventRoutes = require('./routes/event.routes');
 const registrationRoutes = require('./routes/registration.routes');
 const feedbackRoutes = require('./routes/feedback.routes');

@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.neon-glow {
+  text-shadow: 0 0 5px #00BFFF, 0 0 10px #007BFF;
+}
+
+.neon-hover:hover {
+  box-shadow: 0 0 5px #00BFFF, 0 0 10px #007BFF;
+}
