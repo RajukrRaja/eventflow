@@ -1,14 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth.middleware');
+const requireOrganizer = require('../middleware/requireOrganizer');
 const eventController = require('../controllers/event.controller');
 
-// Organizer only
-router.post('/', auth, eventController.createEvent);
-router.put('/:id', auth, eventController.updateEvent);
-router.delete('/:id', auth, eventController.deleteEvent);
-
-// Public
+router.post('/', authMiddleware, requireOrganizer, eventController.createEvent);
+router.put('/:id', authMiddleware, requireOrganizer, eventController.updateEvent);
+router.delete('/:id', authMiddleware, requireOrganizer, eventController.deleteEvent);
 router.get('/', eventController.getAllEvents);
 router.get('/:id', eventController.getEventById);
 

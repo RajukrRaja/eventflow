@@ -1,30 +1,42 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const User = require('./user.model'); // FK to User
+const User = require('./user.model');
 
 const Event = sequelize.define('Event', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
   title: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: DataTypes.STRING(255),
+    allowNull: false
   },
   description: {
     type: DataTypes.TEXT,
+    allowNull: false
   },
   date: {
-    type: DataTypes.DATE,
-    allowNull: false,
+    type: DataTypes.DATEONLY,
+    allowNull: false
   },
-  location: {
-    type: DataTypes.STRING,
-  },
-  created_by: {
+  userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    references: {
+      model: User,
+      key: 'user_id'
+    }
+  },
+  engagementScore: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0
   }
+}, {
+  tableName: 'Events',
+  timestamps: false
 });
 
-// Association
-User.hasMany(Event, { foreignKey: 'created_by' });
-Event.belongsTo(User, { foreignKey: 'created_by' });
+Event.belongsTo(User, { foreignKey: 'userId', as: 'User' });
 
 module.exports = Event;
