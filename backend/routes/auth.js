@@ -1,15 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth.middleware');
-const { registerUser, loginUser, getUserDetails } = require('../controllers/authController');
+const authController = require('../controllers/authController');
 
-// Health check endpoint for debugging
-router.get('/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'Auth API is running' });
-});
-
-router.post('/register', registerUser);
-router.post('/login', loginUser);
-router.get('/me', authMiddleware, getUserDetails);
+router.post('/auth/register', authController.registerUser);
+router.post('/auth/login', authController.loginUser);
 
 module.exports = router;

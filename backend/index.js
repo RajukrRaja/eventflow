@@ -1,30 +1,21 @@
 const express = require('express');
 const cors = require('cors');
-const sequelize = require('./config/database');
-const User = require('./models/user.model');
-const Event = require('./models/event.model');
-const Registration = require('./models/registration.model');
-const Feedback = require('./models/feedback.model');
-require('dotenv').config();
+const authRoutes = require('./routes/auth');
+const eventController = require('./controllers/event.controller');
+const authMiddleware = require('./middleware/auth.middleware');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-const authRoutes = require('./routes/auth');
-const eventRoutes = require('./routes/event.routes');
-const registrationRoutes = require('./routes/registration.routes');
-const feedbackRoutes = require('./routes/feedback.routes');
+app.use('/api', authRoutes);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/events', registrationRoutes);
-app.use('/api/feedback', feedbackRoutes);
-
-sequelize.sync()
-  .then(() => console.log('Models synchronized'))
-  .catch(err => console.error('Sync error:', err));
+console.log('Event Controller:', eventController); // Line 14
+app.get('/api/events', authMiddleware, eventController.getAllEvents); // Line 15
+app.post('/api/events', authMiddleware, eventController.createEvent);
+app.put('/api/events/:id', authMiddleware, eventController.updateEvent);
+app.delete('/api/events/:id', authMiddleware, eventController.deleteEvent);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

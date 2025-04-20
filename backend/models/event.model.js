@@ -5,37 +5,18 @@ const User = require('./user.model');
 const Event = sequelize.define('Event', {
   id: {
     type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
+    primaryKey: true,
+    autoIncrement: true
   },
-  title: {
-    type: DataTypes.STRING(255),
-    allowNull: false
-  },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  date: {
-    type: DataTypes.DATEONLY,
-    allowNull: false
-  },
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  date: { type: DataTypes.DATEONLY, allowNull: false },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: User,
-      key: 'user_id'
-    }
+    references: { model: User, key: 'user_id' }
   },
-  engagementScore: {
-    type: DataTypes.FLOAT,
-    defaultValue: 0
-  }
-}, {
-  tableName: 'Events',
-  timestamps: false
-});
+  engagementScore: { type: DataTypes.INTEGER, defaultValue: 0 }
+}, { tableName: 'events', timestamps: false });
 
 Event.belongsTo(User, { foreignKey: 'userId', as: 'User' });
 

@@ -5,25 +5,20 @@ const Feedback = require('../models/feedback.model');
 
 const calculateEngagementScore = async (eventId) => {
   try {
-    // Number of registrations (0-2 points)
     const registrationCount = await Registration.count({ where: { eventId } });
     const registrationScore = registrationCount > 10 ? 2 : registrationCount >= 5 ? 1 : 0;
 
-    // Attendance confirmation rate (0-2 points)
     const confirmedCount = await Registration.count({ where: { eventId, confirmed: true } });
     const confirmationRate = registrationCount > 0 ? confirmedCount / registrationCount : 0;
     const confirmationScore = confirmationRate > 0.75 ? 2 : confirmationRate >= 0.5 ? 1 : 0;
 
-    // Organizer responsiveness (0-1 point, placeholder)
-    const responsivenessScore = Math.random() >= 0.2 ? 1 : 0; // Simulate 80% responsiveness
+    const responsivenessScore = Math.random() >= 0.2 ? 1 : 0;
 
-    // Attendee feedback (0-1 point)
     const feedback = await Feedback.findAll({ where: { eventId } });
     const feedbackCount = feedback.length;
     const avgRating = feedbackCount > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedbackCount : 0;
     const feedbackScore = feedbackCount >= 5 && avgRating >= 4 ? 1 : 0;
 
-    // Total score
     const totalScore = registrationScore + confirmationScore + responsivenessScore + feedbackScore;
     return totalScore;
   } catch (error) {
