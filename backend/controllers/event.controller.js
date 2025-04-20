@@ -100,7 +100,7 @@ const getAllEvents = async (req, res) => {
     const where = req.user?.role === 'organizer' ? { userId: req.user.id } : {};
     const events = await Event.findAll({
       where,
-      include: [{ model: User, attributes: ['full_name'], as: 'User' }]
+      include: [{ model: User, attributes: ['full_name'], as: 'organizer' }] // Changed alias to 'organizer'
     });
     for (let event of events) {
       const engagementScore = await calculateEngagementScore(event.id);
@@ -117,7 +117,7 @@ const getEventById = async (req, res) => {
   try {
     const { id } = req.params;
     const event = await Event.findByPk(id, {
-      include: [{ model: User, attributes: ['full_name'], as: 'User' }]
+      include: [{ model: User, attributes: ['full_name'], as: 'organizer' }] // Changed alias to 'organizer'
     });
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });

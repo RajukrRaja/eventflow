@@ -20,8 +20,8 @@ const testConnection = async () => {
     console.log('Database connection has been established successfully.');
     await sequelize.sync(); // Creates tables if they don't exist
   } catch (error) {
-    console.error('Unable to connect to the database:', error.message);
-    process.exit(1);
+    console.error('Unable to connect to the database:', error.message); // Log full error
+    process.exit(1); // Exit on failure
   }
 };
 

@@ -1,43 +1,54 @@
-const { DataTypes, Sequelize } = require('sequelize');
-const sequelize = require('../config/database');
+const { DataTypes } = require('sequelize');
 const bcrypt = require('bcrypt');
+const sequelize = require('../config/database');
 
 const User = sequelize.define('User', {
   user_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
   },
   full_name: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
   },
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true
+    unique: true,
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
   },
   role: {
-    type: DataTypes.STRING,
+    type: DataTypes.ENUM('attendee', 'organizer'),
     allowNull: false,
-    defaultValue: 'attendee'
+  },
+  avatar_url: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   is_verified: {
     type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false
-  }
+    defaultValue: false,
+  },
 }, {
+  tableName: 'users',
   timestamps: false,
-  tableName: 'users'
 });
 
-User.prototype.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+// Define association
+User.associate = (models) => {
+  User.hasMany(models.Event, {
+    foreignKey: 'userId',
+    as: 'events', // Alias for the events a user organizes
+  });
+};
+
+// Method to compare passwords
+User.prototype.comparePassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
 };
 
 module.exports = User;

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserCircleIcon } from '@heroicons/react/24/solid';
@@ -27,7 +27,7 @@ const Register = () => {
     setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -40,10 +40,29 @@ const Register = () => {
       return;
     }
 
-    // Placeholder: No network request; simulate success for now
-    setSuccess('Registration would be successful if backend were available. Redirecting to login...');
-    setTimeout(() => navigate('/login'), 2000);
-    setIsLoading(false);
+    try {
+      console.log('Sending registration request with payload:', formData);
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      console.log('Server response status:', response.status);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `Server error: ${response.status}`);
+      }
+
+      setSuccess('Registration successful! Redirecting to login...');
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const inputVariants = {

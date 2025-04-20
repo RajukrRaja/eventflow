@@ -17,25 +17,59 @@ const Login = () => {
     setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setIsLoading(true);
-
-    // Basic form validation
+  
     if (!formData.email || !formData.password) {
       setError('Please fill in all required fields.');
       setIsLoading(false);
       return;
     }
-
-    // Placeholder: No network request; simulate success for now
-    setSuccess('Login would be successful if backend were available. Redirecting to home...');
-    setTimeout(() => navigate('/'), 2000);
-    setIsLoading(false);
+  
+    try {
+      console.log('Sending login request with payload:', formData); // Debug payload
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+        timeout: 10000
+      });
+  
+      console.log('Server response status:', response.status); // Debug status
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.message || `Server error: ${response.status} - ${data.message || 'Unknown error'}`);
+      }
+  
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+  
+      setSuccess('Login successful! Redirecting...');
+      setTimeout(() => {
+        if (data.user.role === 'organizer') {
+          navigate('/organizer-dashboard');
+        } else if (data.user.role === 'attendee') {
+          navigate('/attendee-dashboard');
+        } else {
+          navigate('/');
+        }
+      }, 1500);
+    } catch (err) {
+      console.error('Login error:', err); // Debug error
+      const msg = err.message.includes('timeout')
+        ? 'Request timed out. Please check server connection.'
+        : err.message.includes('Failed to fetch')
+          ? 'Cannot connect to the server. Ensure it is running on localhost:5000.'
+          : err.message;
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
-
   const inputVariants = {
     focus: { scale: 1.02, boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)', transition: { duration: 0.3 } },
     blur: { scale: 1, boxShadow: 'none', transition: { duration: 0.3 } }
