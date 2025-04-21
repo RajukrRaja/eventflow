@@ -1,18 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth.middleware');
-const requireOrganizer = require('../middleware/requireOrganizer');
-const eventController = require('../controllers/event.controller');
+const {
+  createEvent,
+  getEvents,
+  getEventById,
+  updateEvent,
+  deleteEvent,
+} = require('../controllers/event.controller');
+const auth = require('../middleware/auth.middleware');
 
-router.post('/', authMiddleware, requireOrganizer, eventController.createEvent);
-router.put('/:id', authMiddleware, requireOrganizer, eventController.updateEvent);
-router.delete('/:id', authMiddleware, requireOrganizer, eventController.deleteEvent);
-router.get('/', authMiddleware, eventController.getAllEvents);
-router.get('/:id', authMiddleware, eventController.getEventById);
-router.post('/:id/register', authMiddleware, eventController.registerForEvent);
-router.post('/:id/unregister', authMiddleware, eventController.unregisterFromEvent);
-router.post('/:id/confirm', authMiddleware, eventController.confirmAttendance);
-router.post('/feedback', authMiddleware, eventController.submitFeedback);
-router.get('/:id/registrations', authMiddleware, requireOrganizer, eventController.getEventRegistrations);
+/**
+ * @route   POST /api/events
+ * @desc    Create a new event
+ * @access  Private (organizer only)
+ */
+router.post('/', auth('organizer'), createEvent);
+
+/**
+ * @route   GET /api/events
+ * @desc    Get all events for the organizer
+ * @access  Private (organizer only)
+ */
+router.get('/', auth('organizer'), getEvents);
+
+/**
+ * @route   GET /api/events/:id
+ * @desc    Get a single event by ID
+ * @access  Private (organizer only)
+ */
+router.get('/:id', auth('organizer'), getEventById);
+
+/**
+ * @route   PUT /api/events/:id
+ * @desc    Update an event
+ * @access  Private (organizer only)
+ */
+router.put('/:id', auth('organizer'), updateEvent);
+
+/**
+ * @route   DELETE /api/events/:id
+ * @desc    Delete an event
+ * @access  Private (organizer only)
+ */
+router.delete('/:id', auth('organizer'), deleteEvent);
 
 module.exports = router;

@@ -1,11 +1,36 @@
-const express = require('express');
-const router = express.Router();
-const auth = require('../middleware/auth.middleware');
-const regController = require('../controllers/registration.controller');
-
-router.post('/:id/register', auth, regController.register);
-router.post('/:id/unregister', auth, regController.unregister);
-router.get('/:id/registrations', auth, regController.getEventRegistrations);
-router.post('/:id/confirm', auth, regController.confirmAttendance);
-
-module.exports = router;
+module.exports = (sequelize, DataTypes) => {
+    const Registration = sequelize.define('Registration', {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      eventId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: { model: 'Events', key: 'id' },
+      },
+      confirmed: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      feedbackScore: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+    });
+  
+    Registration.associate = (models) => {
+      Registration.belongsTo(models.Event, { foreignKey: 'eventId', as: 'event' });
+    };
+  
+    return Registration;
+  };

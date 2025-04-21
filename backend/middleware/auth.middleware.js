@@ -1,18 +1,30 @@
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-module.exports = (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Authentication failed: No valid Bearer token' });
+const auth = (requiredRole) => {
+  return (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No token provided' });
     }
-    const token = authHeader.split(' ')[1];
-    console.log('Verifying token:', token);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    console.error('Auth Middleware Error:', error.message);
-    return res.status(401).json({ message: 'Authentication failed: Invalid token', error: error.message });
-  }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+
+      // Optional: Check role if requiredRole is passed
+      if (requiredRole && decoded.role !== requiredRole) {
+        return res.status(403).json({ error: 'Forbidden: Insufficient role' });
+      }
+
+      next();
+    } catch (error) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+  };
 };
+
+module.exports = auth;

@@ -1,30 +1,23 @@
 const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
+require('dotenv').config();
 
-dotenv.config();
+const requiredEnvVars = ['DB_NAME', 'DB_USER', 'DB_HOST', 'DB_PORT'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`${envVar} is not defined in .env file`);
+  }
+}
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'eventflow_db',
-  process.env.DB_USER || 'root',
+  process.env.DB_NAME,
+  process.env.DB_USER,
   process.env.DB_PASSWORD || '',
   {
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     dialect: 'mysql',
-    logging: console.log,
+    logging: false,
   }
 );
 
-const testConnection = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
-    await sequelize.sync(); // Creates tables if they don't exist
-  } catch (error) {
-    console.error('Unable to connect to the database:', error.message); // Log full error
-    process.exit(1); // Exit on failure
-  }
-};
-
-testConnection();
-
-module.exports = sequelize;
+module.exports = { sequelize };

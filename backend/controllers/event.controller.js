@@ -1,140 +1,245 @@
-const Event = require('../models/event.model');
-const User = require('../models/user.model');
-const Registration = require('../models/registration.model');
-const Feedback = require('../models/feedback.model');
+const { Event, AuditLog, Registration, User } = require('../models');
+const logger = require('../utils/logger');
 
-const calculateEngagementScore = async (eventId) => {
-  try {
-    const registrationCount = await Registration.count({ where: { eventId } });
-    const registrationScore = registrationCount > 10 ? 2 : registrationCount >= 5 ? 1 : 0;
+// Debugging: Log imported models
+console.log('[DEBUG] Controller models:', {
+  Event: !!Event,
+  AuditLog: !!AuditLog,
+  Registration: !!Registration,
+  User: !!User,
+});
 
-    const confirmedCount = await Registration.count({ where: { eventId, confirmed: true } });
-    const confirmationRate = registrationCount > 0 ? confirmedCount / registrationCount : 0;
-    const confirmationScore = confirmationRate > 0.75 ? 2 : confirmationRate >= 0.5 ? 1 : 0;
-
-    const responsivenessScore = Math.random() >= 0.2 ? 1 : 0;
-
-    const feedback = await Feedback.findAll({ where: { eventId } });
-    const feedbackCount = feedback.length;
-    const avgRating = feedbackCount > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedbackCount : 0;
-    const feedbackScore = feedbackCount >= 5 && avgRating >= 4 ? 1 : 0;
-
-    const totalScore = registrationScore + confirmationScore + responsivenessScore + feedbackScore;
-    return totalScore;
-  } catch (error) {
-    console.error('Calculate Engagement Score Error:', error);
-    return 0;
-  }
-};
-
+/**
+ * Create a new event
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 const createEvent = async (req, res) => {
   try {
-    if (req.user.role !== 'organizer') {
-      return res.status(403).json({ message: 'Only organizers can create events' });
+    const { title, description, date, location } = req.body;
+    const organizerId = req.user?.id;
+
+    // Log input for debugging
+    console.log('[DEBUG] createEvent input:', { title, description, date, location, organizerId });
+
+    // Validate required fields
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({ message: 'Title is required and must be a non-empty string' });
     }
-    const { title, description, date } = req.body;
-    if (!title || !description || !date) {
-      return res.status(400).json({ message: 'Title, description, and date are required' });
+    if (!date || isNaN(new Date(date).getTime())) {
+      return res.status(400).json({ message: 'Date is required and must be a valid ISO date (e.g., 2025-05-01T10:00:00Z)' });
     }
+    if (!location || typeof location !== 'string' || location.trim() === '') {
+      return res.status(400).json({ message: 'Location is required and must be a non-empty string' });
+    }
+    if (!organizerId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizerId)) {
+      return res.status(400).json({ message: 'Invalid organizer ID (must be a valid UUID)' });
+    }
+
+    // Verify organizer exists
+    const organizer = await User.findByPk(organizerId);
+    if (!organizer) {
+      return res.status(400).json({ message: 'Organizer does not exist' });
+    }
+
+    // Create event
     const event = await Event.create({
-      title,
-      description,
-      date,
-      userId: req.user.id,
-      engagementScore: 0
+      title: title.trim(),
+      description: description ? description.trim() : null,
+      date: new Date(date),
+      location: location.trim(),
+      organizerId,
     });
-    return res.status(201).json(event);
+
+    // Log audit
+    await AuditLog.create({
+      action: 'CREATE_EVENT',
+      userEmail: req.user.email || 'unknown',
+      organizerId,
+      details: `Created event: ${title}`,
+    });
+
+    logger.info(`Event created: ${title} by user ${req.user.email || 'unknown'}`);
+    res.status(201).json(event);
   } catch (error) {
-    console.error('Create Event Error:', error);
-    return res.status(500).json({ message: 'Server error creating event' });
+    // Log detailed error
+    console.error('[DEBUG] createEvent error:', error);
+    logger.error(`Error creating event: ${error.message}`);
+    if (error.name === 'SequelizeValidationError') {
+      const errors = error.errors.map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+      return res.status(400).json({ message: 'Validation error', errors });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-const updateEvent = async (req, res) => {
+/**
+ * Get all events for the authenticated organizer
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getEvents = async (req, res) => {
   try {
-    if (req.user.role !== 'organizer') {
-      return res.status(403).json({ message: 'Only organizers can update events' });
+    if (!Event) {
+      throw new Error('Event model is undefined');
     }
-    const { id } = req.params;
-    const { title, description, date } = req.body;
-    const event = await Event.findByPk(id);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    if (event.userId !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized to update this event' });
-    }
-    await event.update({ title, description, date });
-    const engagementScore = await calculateEngagementScore(id);
-    await event.update({ engagementScore });
-    return res.json(event);
-  } catch (error) {
-    console.error('Update Event Error:', error);
-    return res.status(500).json({ message: 'Server error updating event' });
-  }
-};
 
-const deleteEvent = async (req, res) => {
-  try {
-    if (req.user.role !== 'organizer') {
-      return res.status(403).json({ message: 'Only organizers can delete events' });
-    }
-    const { id } = req.params;
-    const event = await Event.findByPk(id);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    if (event.userId !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized to delete this event' });
-    }
-    await event.destroy();
-    return res.json({ message: 'Event deleted' });
-  } catch (error) {
-    console.error('Delete Event Error:', error);
-    return res.status(500).json({ message: 'Server error deleting event' });
-  }
-};
-
-const getAllEvents = async (req, res) => {
-  try {
-    const where = req.user?.role === 'organizer' ? { userId: req.user.id } : {};
     const events = await Event.findAll({
-      where,
-      include: [{ model: User, attributes: ['full_name'], as: 'organizer' }] // Changed alias to 'organizer'
+      where: { organizerId: req.user.id },
+      include: [
+        {
+          model: Registration,
+          as: 'Registrations',
+          attributes: ['confirmed', 'feedbackScore'],
+        },
+      ],
     });
-    for (let event of events) {
-      const engagementScore = await calculateEngagementScore(event.id);
-      await event.update({ engagementScore });
-    }
-    return res.json(events);
+
+    // Calculate engagement score based on registrations
+    const eventsWithScore = events.map((event) => {
+      const registrations = event.Registrations || [];
+      const confirmedCount = registrations.filter((r) => r.confirmed).length;
+      const totalFeedback = registrations.reduce((sum, r) => sum + (r.feedbackScore || 0), 0);
+      const engagementScore = registrations.length
+        ? Math.min((confirmedCount / registrations.length) * 3 + totalFeedback * 2, 5)
+        : 0;
+
+      return {
+        ...event.toJSON(),
+        engagement_score: Number(engagementScore.toFixed(2)),
+      };
+    });
+
+    logger.info(`Fetched events for user ${req.user.email}`);
+    res.json({ events: eventsWithScore });
   } catch (error) {
-    console.error('Get All Events Error:', error);
-    return res.status(500).json({ message: 'Server error fetching events' });
+    logger.error(`Error fetching events: ${error.message}`);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
+/**
+ * Get a single event by ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 const getEventById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const event = await Event.findByPk(id, {
-      include: [{ model: User, attributes: ['full_name'], as: 'organizer' }] // Changed alias to 'organizer'
+    if (!Event) {
+      throw new Error('Event model is undefined');
+    }
+
+    const event = await Event.findOne({
+      where: { id: req.params.id, organizerId: req.user.id },
+      include: [
+        {
+          model: Registration,
+          as: 'Registrations',
+          attributes: ['confirmed', 'feedbackScore'],
+        },
+      ],
     });
+
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
-    const engagementScore = await calculateEngagementScore(id);
-    await event.update({ engagementScore });
-    return res.json(event);
+
+    const registrations = event.Registrations || [];
+    const confirmedCount = registrations.filter((r) => r.confirmed).length;
+    const totalFeedback = registrations.reduce((sum, r) => sum + (r.feedbackScore || 0), 0);
+    const engagementScore = registrations.length
+      ? Math.min((confirmedCount / registrations.length) * 3 + totalFeedback * 2, 5)
+      : 0;
+
+    logger.info(`Fetched event ${event.title} for user ${req.user.email}`);
+    res.json({ ...event.toJSON(), engagement_score: Number(engagementScore.toFixed(2)) });
   } catch (error) {
-    console.error('Get Event By ID Error:', error);
-    return res.status(500).json({ message: 'Server error fetching event' });
+    logger.error(`Error fetching event: ${error.message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Update an event
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateEvent = async (req, res) => {
+  try {
+    const { title, description, date, location } = req.body;
+    if (!Event) {
+      throw new Error('Event model is undefined');
+    }
+
+    const event = await Event.findOne({
+      where: { id: req.params.id, organizerId: req.user.id },
+    });
+
+    if (!event) {
+      return res.status(400).json({ message: 'Event not found' });
+    }
+
+    await event.update({ title, description, date, location });
+
+    await AuditLog.create({
+      action: 'UPDATE_EVENT',
+      userEmail: req.user.email,
+      organizerId: req.user.id,
+      details: `Updated event: ${title}`,
+    });
+
+    logger.info(`Event updated: ${title} by user ${req.user.email}`);
+    res.json(event);
+  } catch (error) {
+    logger.error(`Error updating event: ${error.message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Delete an event
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const deleteEvent = async (req, res) => {
+  try {
+    if (!Event) {
+      throw new Error('Event model is undefined');
+    }
+
+    const event = await Event.findOne({
+      where: { id: req.params.id, organizerId: req.user.id },
+    });
+
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const eventTitle = event.title;
+    await event.destroy();
+
+    await AuditLog.create({
+      action: 'DELETE_EVENT',
+      userEmail: req.user.email,
+      organizerId: req.user.id,
+      details: `Deleted event: ${eventTitle}`,
+    });
+
+    logger.info(`Event deleted: ${eventTitle} by user ${req.user.email}`);
+    res.json({ message: 'Event deleted' });
+  } catch (error) {
+    logger.error(`Error deleting event: ${error.message}`);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 module.exports = {
   createEvent,
+  getEvents,
+  getEventById,
   updateEvent,
   deleteEvent,
-  getAllEvents,
-  getEventById
 };
